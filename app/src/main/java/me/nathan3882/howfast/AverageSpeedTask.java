@@ -21,12 +21,13 @@ import java.util.TimerTask;
 public class AverageSpeedTask extends TimerTask implements IActivityReferencer<Activity> {
 
 
+    public static final int REQUEST_PERMISSION_ID = 1001;
     private static DecimalFormat format;
+    private static AverageSpeedTask singleton = null;
+
     static {
         format = new DecimalFormat("##.##");
     }
-    public static final int REQUEST_PERMISSION_ID = 1001;
-    private static AverageSpeedTask singleton = null;
 
     private final Timer timer;
     private final Context context;
@@ -39,7 +40,11 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
 
     private AverageSpeedTask(IActivityReferencer<Activity> iActivityReferencer, Timer timer) {
         this.weakReference = iActivityReferencer.getWeakReference();
-        this.activity = (StartAcitvity) getReferenceValue();
+        if (getReferenceValue() instanceof StartAcitvity) {
+            this.activity = (StartAcitvity) getReferenceValue();
+        } else {
+            throw new RuntimeException("Programmatic error - AverageSpeedTask must be supplied with an activity reference of Type " + StartAcitvity.class.getName() + "!");
+        }
         this.context = getActivity().getApplicationContext();
         this.currentSpeedTextView = getActivity().findViewById(R.id.current_average_speed);
         this.timer = timer;
@@ -54,10 +59,6 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
 
     public void start() {
         timer.scheduleAtFixedRate(this, 10_000, 10_000); //every 10 seconds, will call Runnable#run()
-    }
-
-    public static DecimalFormat getFormat() {
-        return format;
     }
 
     @SuppressLint("MissingPermission")
@@ -102,9 +103,9 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
                         float mileDifference = (float) (meterDifference * 0.00062137);
                         float mphSpeed = (mileDifference / elapsedHours);
                         getCurrentSpeedTextView().setText(getFormat().format(mphSpeed) + "mph");
-                    }else {
+                    } else {
                         float kilometerDifference = (float) (meterDifference / 1000);
-                        float kmphSpeed  = (kilometerDifference / elapsedHours);
+                        float kmphSpeed = (kilometerDifference / elapsedHours);
                         getCurrentSpeedTextView().setText(getFormat().format(kmphSpeed) + "km/h");
 
                     }
@@ -128,6 +129,10 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
 
     private int getPermissionCode(String permission) {
         return ActivityCompat.checkSelfPermission(getContext(), permission);
+    }
+
+    public static DecimalFormat getFormat() {
+        return format;
     }
 
     public long getPreviousHeartbeatMillis() {
