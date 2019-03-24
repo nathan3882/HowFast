@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools"
+                android:layout_width="match_parent"
+                android:id="@+id/relative_content_layout" android:visibility="visible"
+                android:layout_height="match_parent"
+                android:background="#a3c5ff"
+                tools:context=".activities.StartAcitvity">
+    <TextView android:id="@+id/welcome_text"
+              android:layout_width="match_parent"
+              android:layout_height="84dp"
+              android:keepScreenOn="true"
+              android:textColor="#FFFFFF"
+              android:textStyle="bold"
+              android:textSize="32sp"
+              android:gravity="center"
+              android:layout_alignParentStart="true" android:layout_alignParentTop="true"
+              android:layout_marginTop="16dp"
+              android:fontFamily="sans-serif" android:text="Welcome"/>
+    <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="173dp" app:srcCompat="@drawable/divider_line"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="16dp" android:id="@+id/divider_line"
+            android:layout_alignParentStart="true"/>
+    <ImageView
+            android:layout_width="94dp"
+            android:layout_height="77dp" app:srcCompat="@drawable/info_button"
+            android:id="@+id/help_button" android:layout_alignParentStart="true" android:layout_marginStart="43dp"
+            android:layout_alignParentBottom="true" android:layout_marginBottom="43dp"/>
+    <TextView
+            android:layout_width="186dp"
+            android:layout_height="75dp"
+            android:gravity="left|center"
+            android:id="@+id/help_button_caption"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="29dp" android:layout_alignTop="@+id/help_button"
+            android:text="help_caption"/>
+    <TextView
+            android:text="Your average speed is"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:layout_centerHorizontal="true"
+            android:id="@+id/current_average_speed_caption"
+            android:textSize="20sp" android:layout_alignParentTop="true" android:layout_marginTop="120dp"/>
+    <TextView
+            android:text="TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true" android:id="@+id/current_average_speed" tools:text="{speed}"
+            android:textSize="25sp"
+            android:layout_below="@+id/current_average_speed_caption"/>
+    <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" app:srcCompat="@drawable/divider_new"
+            android:id="@+id/middle_divider" android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true" android:layout_marginTop="171dp" android:visibility="visible"/>
+    <TextView
+            android:text="TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:layout_centerHorizontal="true"
+            android:layout_below="@+id/middle_divider" android:id="@+id/alternatively_desc"/>
+
+</RelativeLayout>
