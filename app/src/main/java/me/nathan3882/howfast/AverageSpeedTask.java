@@ -1,15 +1,11 @@
 package me.nathan3882.howfast;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationManager;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.widget.TextView;
 import me.nathan3882.howfast.activities.StartAcitvity;
 
@@ -18,15 +14,13 @@ import java.text.DecimalFormat;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class AverageSpeedTask extends TimerTask implements IActivityReferencer<Activity> {
+public class AverageSpeedTask extends TimerTask implements IActivityReferencer<StartAcitvity> {
 
 
-    public static final int REQUEST_PERMISSION_ID = 1001;
-    private static DecimalFormat format;
     private static AverageSpeedTask singleton = null;
 
     static {
-        format = new DecimalFormat("##.##");
+        StartAcitvity.format = new DecimalFormat("##.##");
     }
 
     private final Timer timer;
@@ -34,11 +28,11 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
     private final StartAcitvity activity;
     private final TextView currentSpeedTextView;
 
-    private WeakReference<Activity> weakReference;
+    private WeakReference<StartAcitvity> weakReference;
     private Location previouslyKnownLocation = null;
     private long previousHeartbeatMillis = -1;
 
-    private AverageSpeedTask(IActivityReferencer<Activity> iActivityReferencer, Timer timer) {
+    private AverageSpeedTask(IActivityReferencer<StartAcitvity> iActivityReferencer, Timer timer) {
         this.weakReference = iActivityReferencer.getWeakReference();
         if (getReferenceValue() instanceof StartAcitvity) {
             this.activity = (StartAcitvity) getReferenceValue();
@@ -50,7 +44,7 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
         this.timer = timer;
     }
 
-    public static AverageSpeedTask newInstance(IActivityReferencer<Activity> iActivityReferencer, Timer timer) {
+    public static AverageSpeedTask newInstance(IActivityReferencer<StartAcitvity> iActivityReferencer, Timer timer) {
         if (getInstance() == null) {
             singleton = new AverageSpeedTask(iActivityReferencer, timer);
         }
@@ -58,88 +52,77 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
     }
 
     public void start() {
-        timer.scheduleAtFixedRate(this, 10_000, 10_000); //every 10 seconds, will call Runnable#run()
+        timer.scheduleAtFixedRate(this, 3_000, 10_000); //every 10 seconds, will call Runnable#run()
     }
 
     @SuppressLint("MissingPermission")
     @Override
     public void run() {
-        LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
-        String permissionFineLocation = Manifest.permission.ACCESS_FINE_LOCATION;
+        System.out.println("run");
 
-        String permissionCoarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION;
-
-        int granted = PackageManager.PERMISSION_GRANTED;
-        if (getPermissionCode(permissionFineLocation) != granted &&
-                getPermissionCode(permissionCoarseLocation) != granted) {
-
-            ActivityCompat.requestPermissions(getActivity(),
-                    new String[]{permissionCoarseLocation, permissionFineLocation},
-                    AverageSpeedTask.REQUEST_PERMISSION_ID);
+        if (!getReferenceValue().hasLocationPermissions(true)) {
             cancel(); //Cancel, when user has given all perms, will call Runnable#run again
         } else {
             //permissions granted
+            long currentMillis = System.currentTimeMillis();
 
-            if (lm != null) {
-                long currentMillis = System.currentTimeMillis();
-                Location currentLocation = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            getReferenceValue().forceGetCurrentLocation(newLocation -> {
 
-                Location previouslyKnownLocation = getPreviouslyKnownLocation();
-                long previousHeartbeatMillis = getPreviousHeartbeatMillis();
+                if (newLocation != null) {
+                    System.out.println(newLocation.getLongitude() + " " + newLocation.getLatitude());
 
-                if (previouslyKnownLocation != null && previousHeartbeatMillis != -1) {
+                    Location previouslyKnownLocation = getPreviouslyKnownLocation();
+                    long previousHeartbeatMillis = getPreviousHeartbeatMillis();
 
-                    double meterDifference = getDistanceBetween(currentLocation, previouslyKnownLocation);
+                    if (previouslyKnownLocation != null && previousHeartbeatMillis != -1) {
 
-                    long elapsedMillis = currentMillis - previousHeartbeatMillis;
-                    long elapsedSeconds = elapsedMillis / 1000;
-                    float elapsedMinutes = (float) elapsedSeconds / 60;
-                    float elapsedHours = elapsedMinutes / 60;
+                        double meterDifference = getDistanceBetween(newLocation, previouslyKnownLocation);
+                        if (meterDifference < 1) { //less than 1 meter travelled, don't do anything - can tend to fluctuate even when standing still ~1 meter
+                            updateCurrentSpeedTextView("unknown - walk around.");
+                        }
 
-                    SharedPreferences settings = getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE);
-                    //if has data about useMph and the user doesn't want to use mph execute condition = true else false
-                    boolean useMph = !settings.contains("useMph") || settings.getBoolean("useMph", false);
-                    if (useMph) {
-                        float mileDifference = (float) (meterDifference * 0.00062137);
-                        float mphSpeed = (mileDifference / elapsedHours);
-                        getCurrentSpeedTextView().setText(getFormat().format(mphSpeed) + "mph");
+                        SharedPreferences settings = getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE);
+                        //if has data about useMph and the user doesn't want to use mph execute condition = true else false
+
+                        boolean useMph = !settings.contains("useMph") || settings.getBoolean("useMph", false);
+                        SpeedUnit toUse = useMph ? SpeedUnit.MPH : SpeedUnit.KMPH;
+
+                        updateCurrentSpeedTextView(
+                                StartAcitvity.getUnitString(currentMillis, previousHeartbeatMillis, meterDifference, toUse));
                     } else {
-                        float kilometerDifference = (float) (meterDifference / 1000);
-                        float kmphSpeed = (kilometerDifference / elapsedHours);
-                        getCurrentSpeedTextView().setText(getFormat().format(kmphSpeed) + "km/h");
-
+                        updateCurrentSpeedTextView("unknown - wait 10s.");
                     }
                 }
-
-                setPreviouslyKnownLocation(currentLocation);
+                setPreviouslyKnownLocation(newLocation);
                 setPreviousHeartbeatMillis(currentMillis);
-            }
+            });
         }
 
     }
 
     @Override
-    public WeakReference<Activity> getWeakReference() {
+    public WeakReference<StartAcitvity> getWeakReference() {
         return weakReference;
+    }
+
+    private void updateCurrentSpeedTextView(String newString) {
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                getCurrentSpeedTextView().setText(newString);
+            }
+        });
     }
 
     private double getDistanceBetween(Location a, Location b) {
         return a.distanceTo(b);
     }
 
-    private int getPermissionCode(String permission) {
-        return ActivityCompat.checkSelfPermission(getContext(), permission);
-    }
-
-    public static DecimalFormat getFormat() {
-        return format;
-    }
-
-    public long getPreviousHeartbeatMillis() {
+    private long getPreviousHeartbeatMillis() {
         return previousHeartbeatMillis;
     }
 
-    public void setPreviousHeartbeatMillis(long previousHeartbeatMillis) {
+    private void setPreviousHeartbeatMillis(long previousHeartbeatMillis) {
         this.previousHeartbeatMillis = previousHeartbeatMillis;
     }
 
@@ -147,7 +130,7 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
         return previouslyKnownLocation;
     }
 
-    public void setPreviouslyKnownLocation(Location previouslyKnownLocation) {
+    private void setPreviouslyKnownLocation(Location previouslyKnownLocation) {
         this.previouslyKnownLocation = previouslyKnownLocation;
     }
 
@@ -156,19 +139,15 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<A
         return singleton;
     }
 
-    public StartAcitvity getActivity() {
+    private StartAcitvity getActivity() {
         return this.activity;
     }
 
-    public Timer getTimer() {
-        return timer;
-    }
-
-    public Context getContext() {
+    private Context getContext() {
         return context;
     }
 
-    public TextView getCurrentSpeedTextView() {
+    private TextView getCurrentSpeedTextView() {
         return currentSpeedTextView;
     }
 }

@@ -20,8 +20,14 @@
     <ImageView
             android:layout_width="match_parent"
             android:layout_height="173dp" app:srcCompat="@drawable/divider_line"
+            android:id="@+id/divider_line"
+            android:layout_alignParentStart="true" android:layout_alignParentTop="true"
+            android:layout_marginTop="110dp"/>
+    <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="173dp" app:srcCompat="@drawable/divider_line"
             android:layout_alignParentTop="true"
-            android:layout_marginTop="16dp" android:id="@+id/divider_line"
+            android:layout_marginTop="16dp" android:id="@+id/divider_line2"
             android:layout_alignParentStart="true"/>
     <ImageView
             android:layout_width="94dp"
@@ -41,23 +47,40 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" android:layout_centerHorizontal="true"
             android:id="@+id/current_average_speed_caption"
+            android:gravity="center_vertical"
             android:textSize="20sp" android:layout_alignParentTop="true" android:layout_marginTop="120dp"/>
     <TextView
             android:text="TextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+
             android:layout_centerHorizontal="true" android:id="@+id/current_average_speed" tools:text="{speed}"
             android:textSize="25sp"
             android:layout_below="@+id/current_average_speed_caption"/>
-    <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" app:srcCompat="@drawable/divider_new"
-            android:id="@+id/middle_divider" android:layout_alignParentStart="true"
-            android:layout_alignParentTop="true" android:layout_marginTop="171dp" android:visibility="visible"/>
     <TextView
             android:text="TextView"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:layout_centerHorizontal="true"
-            android:layout_below="@+id/middle_divider" android:id="@+id/alternatively_desc"/>
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:id="@+id/alternatively_desc" android:layout_centerHorizontal="true"
+            android:layout_alignParentTop="true" android:layout_marginTop="220dp"/>
+    <Button
+            android:text="Set Start"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/set_start_button"
+            android:layout_centerInParent="true"/>
+    <Button
+            android:text="Reset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:layout_alignParentBottom="true"
+            android:layout_marginBottom="148dp" android:layout_centerHorizontal="true" android:id="@+id/resetButton"/>
+    <Button
+            android:text="setEndButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/set_end_button"
+            android:layout_centerHorizontal="true" android:layout_below="@+id/set_start_button"/>
 
 </RelativeLayout>
