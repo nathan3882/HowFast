@@ -4,7 +4,10 @@ package me.nathan3882.howfast.activities;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -18,12 +21,16 @@ import android.widget.*;
 import me.nathan3882.howfast.*;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
+import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.util.Timer;
 
 public class StartAcitvity extends AppCompatActivity implements IActivityReferencer<StartAcitvity> {
 
     public static final int REQUEST_PERMISSION_ID = 1001;
+    private static final String PREFERENCES_LOCATION = "me.nathan3882.howfast.unitprefs";
+    private static final String UNIT_KEY = "speedUnitKey";
     public static DecimalFormat format;
     private RelativeLayout relativeLayout;
 
@@ -51,6 +58,8 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
     private Location previouslyGottenLocation = null;
     private long previouslyGotAtMillis;
     private long previouslyCalledMillis;
+    private SpeedUnit preferredUnit;
+    private SharedPreferences preferences;
 
     private static int getPermissionCode(Activity activity, String permission) {
         return ActivityCompat.checkSelfPermission(activity, permission);
@@ -76,9 +85,8 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
             toAppend = "km/h";
         }
 
-        System.out.println("unit val = " + unitValue);
-        if (unitValue < 1.0 ) {
-            return "< 1" + toAppend + " - walk about";
+        if (unitValue < 1.0) {
+            return "unknown - walk about";
         } else {
             return getFormat().format(unitValue) + toAppend;
         }
@@ -139,10 +147,6 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         }
     }
 
-    public long getPreviouslyCalledMillis() {
-        return previouslyCalledMillis;
-    }
-
     public boolean hasLocationPermissions(boolean askToApprove) {
         String permissionFineLocation = Manifest.permission.ACCESS_FINE_LOCATION;
         String permissionCoarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION;
@@ -195,6 +199,13 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         setStartButton.setOnClickListener(getSetStartButtonHandler());
         setEndButton.setOnClickListener(getSetEndButtonHandler());
 
+        this.preferences = getSharedPreferences(PREFERENCES_LOCATION, MODE_PRIVATE);
+        if (getPreferences().contains(UNIT_KEY)) {
+            SpeedUnit.valueOf(getPreferences().getString(UNIT_KEY, SpeedUnit.MPH.name()));
+        }else{
+            showPickUnitDialog(null);
+        }
+
         resetButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -222,6 +233,36 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
         getAverageSpeedTask().start();
 
+    }
+
+    private void showPickUnitDialog(SpeedUnit alreadySelectedUnit) {
+        SpeedUnit[] speedUnitValues = SpeedUnit.values();
+        int length = speedUnitValues.length;
+        CharSequence[] speedUnits = (CharSequence[]) Array.newInstance(CharSequence.class, length);
+        for (int i = 0; i < length; i++) {
+            Array.set(speedUnits, i, Util.upperFirst(speedUnitValues[i].name()));
+        }
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this)
+                .setCancelable(false)
+                .setTitle("Pick a unit")
+                .setItems(speedUnits, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                SpeedUnit clicked = SpeedUnit.valueOf(speedUnits[which].toString().toUpperCase());
+                if (alreadySelectedUnit != clicked) {
+                    getReferenceValue().updatePreferredUnit(clicked);
+                    dialog.dismiss();
+                    dialog.cancel();
+                }
+            }
+        });
+        dialogBuilder.show();
+    }
+
+    private void updatePreferredUnit(SpeedUnit clicked) {
+        preferences.edit().putString(UNIT_KEY, clicked.name()).apply();
+        this.preferredUnit = clicked;
+        System.out.println("set to " + clicked);
     }
 
     @Override
@@ -273,6 +314,22 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         getAlternativelyDesc().setText(Util.html("<html><center>Alternatively, find out how fast<br>you're going between two points</center></html>"));
     }
 
+    public Button getSetEndButton() {
+        return setEndButton;
+    }
+
+    public Button getResetButton() {
+        return resetButton;
+    }
+
+    public SharedPreferences getPreferences() {
+        return preferences;
+    }
+
+    public long getPreviouslyCalledMillis() {
+        return previouslyCalledMillis;
+    }
+
     public long getPreviouslyGotAtMillis() {
         return previouslyGotAtMillis;
     }
@@ -282,7 +339,12 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
     }
 
     public SpeedUnit getPreferredUnit() {
-        return SpeedUnit.MPH;
+        SpeedUnit preferredUnit = this.preferredUnit;
+        SpeedUnit preferencedUnit = SpeedUnit.valueOf(getPreferences().getString(UNIT_KEY, preferredUnit.name()));
+        if (preferredUnit != preferencedUnit) {
+            updatePreferredUnit(preferencedUnit);
+        }
+        return preferredUnit;
     }
 
     private static DecimalFormat getFormat() {

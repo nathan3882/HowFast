@@ -20,7 +20,6 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
         calendar = Calendar.getInstance();
     }
 
-
     private final Button button;
     private final Type buttonType;
     private final WeakReference<StartAcitvity> weakReference;
@@ -49,8 +48,6 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
 
         ButtonHandler otherButton = getOtherButton();
         Type thisType = getButtonType();
-        System.out.println("click click click");
-        System.out.println("this type = " + thisType.name());
         if (thisType == Type.START && otherButton != null) {
             //Other button is finish
             System.out.println("1");
