@@ -39,8 +39,7 @@ public class Util {
         array[refIndex] = val;
     }
 
-    public static String upperFirst(DayOfWeek dayOfWeek) {
-        String string = dayOfWeek.name();
+    public static String upperFirst(String string) {
         return string.substring(0, 1).toUpperCase() + string.substring(1).toLowerCase();
     }
 

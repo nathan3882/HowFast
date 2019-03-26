@@ -64,23 +64,30 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:id="@+id/alternatively_desc" android:layout_centerHorizontal="true"
-            android:layout_alignParentTop="true" android:layout_marginTop="220dp"/>
+            android:layout_alignParentTop="true" android:layout_marginTop="220dp" android:textAlignment="center"
+            android:textAllCaps="false"/>
     <Button
-            android:text="Set Start"
+            android:text="@string/set_start_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textAllCaps="false"
             android:id="@+id/set_start_button"
-            android:layout_centerInParent="true"/>
+            android:layout_centerInParent="true" tools:text="@string/set_start_button"/>
     <Button
             android:text="Reset"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:layout_alignParentBottom="true"
-            android:layout_marginBottom="148dp" android:layout_centerHorizontal="true" android:id="@+id/resetButton"/>
+            android:textAllCaps="false"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true" android:id="@+id/resetButton"
+            android:layout_above="@+id/help_button"/>
     <Button
-            android:text="setEndButton"
+            android:text="@string/press_start_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/set_end_button"
-            android:layout_centerHorizontal="true" android:layout_below="@+id/set_start_button"/>
+            android:textAllCaps="false"
+            tools:text="@string/press_start_button" android:layout_centerHorizontal="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="198dp"/>
 
 </RelativeLayout>

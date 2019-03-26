@@ -1,7 +1,6 @@
 package me.nathan3882.howfast;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.location.Location;
@@ -34,8 +33,8 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
 
     private AverageSpeedTask(IActivityReferencer<StartAcitvity> iActivityReferencer, Timer timer) {
         this.weakReference = iActivityReferencer.getWeakReference();
-        if (getReferenceValue() instanceof StartAcitvity) {
-            this.activity = (StartAcitvity) getReferenceValue();
+        if (getReferenceValue() != null) {
+            this.activity = getReferenceValue();
         } else {
             throw new RuntimeException("Programmatic error - AverageSpeedTask must be supplied with an activity reference of Type " + StartAcitvity.class.getName() + "!");
         }
@@ -52,7 +51,7 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
     }
 
     public void start() {
-        timer.scheduleAtFixedRate(this, 3_000, 10_000); //every 10 seconds, will call Runnable#run()
+        timer.scheduleAtFixedRate(this, 1_000, 3500); //every 10 seconds, will call Runnable#run()
     }
 
     @SuppressLint("MissingPermission")
@@ -77,9 +76,6 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
                     if (previouslyKnownLocation != null && previousHeartbeatMillis != -1) {
 
                         double meterDifference = getDistanceBetween(newLocation, previouslyKnownLocation);
-                        if (meterDifference < 1) { //less than 1 meter travelled, don't do anything - can tend to fluctuate even when standing still ~1 meter
-                            updateCurrentSpeedTextView("unknown - walk around.");
-                        }
 
                         SharedPreferences settings = getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE);
                         //if has data about useMph and the user doesn't want to use mph execute condition = true else false
@@ -90,7 +86,7 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
                         updateCurrentSpeedTextView(
                                 StartAcitvity.getUnitString(currentMillis, previousHeartbeatMillis, meterDifference, toUse));
                     } else {
-                        updateCurrentSpeedTextView("unknown - wait 10s.");
+                        updateCurrentSpeedTextView("unknown...");
                     }
                 }
                 setPreviouslyKnownLocation(newLocation);

@@ -1,6 +1,5 @@
 package me.nathan3882.howfast;
 
-import android.app.Activity;
 import android.graphics.Color;
 import android.location.Location;
 import android.support.annotation.Nullable;
@@ -10,9 +9,16 @@ import android.widget.Toast;
 import me.nathan3882.howfast.activities.StartAcitvity;
 
 import java.lang.ref.WeakReference;
-import java.util.TimerTask;
+import java.util.Calendar;
+import java.util.Date;
 
 public class ButtonHandler implements View.OnClickListener, IActivityReferencer<StartAcitvity> {
+
+    private static Calendar calendar;
+
+    static {
+        calendar = Calendar.getInstance();
+    }
 
 
     private final Button button;
@@ -61,6 +67,7 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
             PressedState otherPressedState = otherButton.getPressedState();
 
             if (otherPressedState == PressedState.PRESSED) {
+
                 //do calculations etc
                 long startedAt = otherButton.getLastClickedAt();
 
@@ -70,26 +77,19 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
                 String averageString = StartAcitvity.getUnitString(currentMillis, startedAt, distance, getReferenceValue().getPreferredUnit());
 
                 doToast("Your average speed was " + averageString);
-                reset();
+
                 otherButton.reset();
+                reset();
             } else if (otherPressedState == PressedState.NOT_BEEN_PRESSED) {
                 //start button not been pressed
                 System.out.println("3");
 
                 doToast("You must press start!");
-            }else{
+            } else {
                 System.out.println("4");
 
             }
         }
-    }
-
-    public void setOtherButton(ButtonHandler otherButton) {
-        this.otherButton = otherButton;
-    }
-
-    private void doToast(String s) {
-        Toast.makeText(getReferenceValue(), s, Toast.LENGTH_LONG).show();
     }
 
     public void reset() {
@@ -126,6 +126,10 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
         return this.weakReference;
     }
 
+    private void doToast(String s) {
+        Toast.makeText(getReferenceValue(), s, Toast.LENGTH_LONG).show();
+    }
+
     private void update(long lastClickedAt, Location currentLocation) {
         setLastClickedAt(lastClickedAt);
         setClickedAtThisLocation(currentLocation);
@@ -138,16 +142,37 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
     public void setPressedState(PressedState pressedState) {
         this.pressedState = pressedState;
 
+        Button button = getButton();
+        Date date = new Date(getLastClickedAt());
+        calendar.setTime(date);
         if (pressedState == PressedState.PRESSED) {
-            getButton().setBackgroundColor(Color.GREEN);
+            button.setBackgroundColor(Color.GREEN);
+            if (getButtonType() == Type.START) {
+                button.setText("Pressed at " + calendar.get(Calendar.HOUR_OF_DAY) + ":" + calendar.get(Calendar.MINUTE) + " + " + calendar.get(Calendar.SECOND) + "s");
+
+            }
         } else if (pressedState == PressedState.NOT_BEEN_PRESSED) {
-            getButton().setBackgroundColor(Color.RED);
+            button.setBackgroundColor(Color.RED);
+            if (getButtonType() == Type.START) {
+                button.setText(getReferenceValue().getString(R.string.set_start_button));
+            } else if (getButtonType() == Type.FINISH) {
+                if (getOtherButton().getPressedState() == PressedState.PRESSED) {
+                    button.setText(getReferenceValue().getString(R.string.get_speed));
+                }else {
+                    button.setText(getReferenceValue().getString(R.string.press_start_button));
+                }
+            }
         }
     }
 
     @Nullable //null if Type == RESET
     public ButtonHandler getOtherButton() {
         return otherButton;
+    }
+
+    public void setOtherButton(ButtonHandler otherButton) {
+        this.otherButton = otherButton;
+        otherButton.reset();
     }
 
     public Type getButtonType() {

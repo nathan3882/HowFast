@@ -50,6 +50,7 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
     private Location previouslyGottenLocation = null;
     private long previouslyGotAtMillis;
+    private long previouslyCalledMillis;
 
     private static int getPermissionCode(Activity activity, String permission) {
         return ActivityCompat.checkSelfPermission(activity, permission);
@@ -76,8 +77,8 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         }
 
         System.out.println("unit val = " + unitValue);
-        if (unitValue < 1.0) {
-            return "unknown - walk about";
+        if (unitValue < 1.0 ) {
+            return "< 1" + toAppend + " - walk about";
         } else {
             return getFormat().format(unitValue) + toAppend;
         }
@@ -85,49 +86,61 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
     public void forceGetCurrentLocation(LocationChangedEvent event) {
         StartAcitvity referenceValue = getReferenceValue();
-        LocationManager lm = (LocationManager) referenceValue.getApplicationContext().getSystemService(LOCATION_SERVICE);
+        LocationManager lm = (LocationManager) referenceValue.getSystemService(LOCATION_SERVICE);
         long callingCurrentMillis = System.currentTimeMillis();
-        long elapsedSinceLastCall = callingCurrentMillis - getPreviouslyGotAtMillis();
+        this.previouslyCalledMillis = callingCurrentMillis;
+
+        long elapsedSinceLastCall = callingCurrentMillis - getPreviouslyCalledMillis();
+
+        long elapsedSinceLastFetched = callingCurrentMillis - getPreviouslyGotAtMillis();
+
         boolean hasntExecutedThisBefore = getPreviouslyGottenLocation() == null;
         if (lm != null) {
-            if (elapsedSinceLastCall <= 3500 && !hasntExecutedThisBefore) {
-                //Have executed and less than 3500 ago, use previously got
+            long leewayMillis = 3500;
+            if (elapsedSinceLastCall <= leewayMillis && elapsedSinceLastFetched <= leewayMillis && !hasntExecutedThisBefore) {
+                //Have executed and less than 3500 ago, and gotten an answer less than 3500 ago return prev answer
                 event.gottenLocation(getPreviouslyGottenLocation());
+                System.out.println("pressed below 3500 and has executed before");
                 return;
+            } else {
+                //if more than leewayMillis millis have elapsed since the last time called, fetch new real value
+                referenceValue.runOnUiThread(new Runnable() {
+                    @SuppressLint("MissingPermission")
+                    @Override
+                    public void run() {
+                        lm.requestLocationUpdates(
+                                LocationManager.NETWORK_PROVIDER, 1000, 1, new LocationListener() {
+                                    @Override
+                                    public void onLocationChanged(Location location) {
+                                        event.gottenLocation(location);
+                                        lm.removeUpdates(this);
+                                        StartAcitvity.this.previouslyGottenLocation = location;
+                                        StartAcitvity.this.previouslyGotAtMillis = System.currentTimeMillis();
+                                    }
+
+                                    @Override
+                                    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+                                    }
+
+                                    @Override
+                                    public void onProviderEnabled(String provider) {
+
+                                    }
+
+                                    @Override
+                                    public void onProviderDisabled(String provider) {
+
+                                    }
+                                });
+                    }
+                });
             }
-            //if less than than five seconds have elapsedSinceLastCall since the last time attempted
-            referenceValue.runOnUiThread(new Runnable() {
-                @SuppressLint("MissingPermission")
-                @Override
-                public void run() {
-                    lm.requestLocationUpdates(
-                            LocationManager.NETWORK_PROVIDER, 1000, 1, new LocationListener() {
-                                @Override
-                                public void onLocationChanged(Location location) {
-                                    event.gottenLocation(location);
-                                    lm.removeUpdates(this);
-                                    StartAcitvity.this.previouslyGottenLocation = location;
-                                    StartAcitvity.this.previouslyGotAtMillis = System.currentTimeMillis();
-                                }
-
-                                @Override
-                                public void onStatusChanged(String provider, int status, Bundle extras) {
-
-                                }
-
-                                @Override
-                                public void onProviderEnabled(String provider) {
-
-                                }
-
-                                @Override
-                                public void onProviderDisabled(String provider) {
-
-                                }
-                            });
-                }
-            });
         }
+    }
+
+    public long getPreviouslyCalledMillis() {
+        return previouslyCalledMillis;
     }
 
     public boolean hasLocationPermissions(boolean askToApprove) {
