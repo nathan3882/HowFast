@@ -4,5 +4,5 @@ import android.location.Location;
 
 public interface LocationChangedEvent {
 
-    void gottenLocation(Location newLocation);
+    void onLocationChange(Location newLocation);
 }

@@ -6,7 +6,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -22,16 +21,20 @@ import me.nathan3882.howfast.*;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
-import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.util.Timer;
 
 public class StartAcitvity extends AppCompatActivity implements IActivityReferencer<StartAcitvity> {
 
-    public static final int REQUEST_PERMISSION_ID = 1001;
+    private static final int REQUEST_PERMISSION_ID = 1001;
     private static final String PREFERENCES_LOCATION = "me.nathan3882.howfast.unitprefs";
     private static final String UNIT_KEY = "speedUnitKey";
-    public static DecimalFormat format;
+    private static DecimalFormat format;
+
+    static {
+        format = new DecimalFormat("##.##");
+    }
+
     private RelativeLayout relativeLayout;
 
     private ImageView helpButton;
@@ -55,11 +58,14 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
     private Button resetButton;
 
-    private Location previouslyGottenLocation = null;
+    private Location previouslyGottenLocation;
     private long previouslyGotAtMillis;
     private long previouslyCalledMillis;
-    private SpeedUnit preferredUnit;
+
     private SharedPreferences preferences;
+    private SpeedUnit preferredUnit;
+
+    private AlertDialog.Builder querySpeedUnitDialog;
 
     private static int getPermissionCode(Activity activity, String permission) {
         return ActivityCompat.checkSelfPermission(activity, permission);
@@ -85,60 +91,59 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
             toAppend = "km/h";
         }
 
-        if (unitValue < 1.0) {
-            return "unknown - walk about";
+        if (Double.valueOf(unitValue).isNaN() || unitValue < 1.0) {
+            System.out.println("speed = " + unitValue);
+            return "< 1" + toAppend + " - walk about";
         } else {
             return getFormat().format(unitValue) + toAppend;
         }
     }
 
-    public void forceGetCurrentLocation(LocationChangedEvent event) {
-        StartAcitvity referenceValue = getReferenceValue();
-        LocationManager lm = (LocationManager) referenceValue.getSystemService(LOCATION_SERVICE);
+    public void getCurrentLocation(LocationChangedEvent event) {
+        StartAcitvity activity = getReferenceValue();
+
+        LocationManager lm = (LocationManager) activity.getSystemService(LOCATION_SERVICE);
+
         long callingCurrentMillis = System.currentTimeMillis();
         this.previouslyCalledMillis = callingCurrentMillis;
 
         long elapsedSinceLastCall = callingCurrentMillis - getPreviouslyCalledMillis();
-
         long elapsedSinceLastFetched = callingCurrentMillis - getPreviouslyGotAtMillis();
 
         boolean hasntExecutedThisBefore = getPreviouslyGottenLocation() == null;
+
         if (lm != null) {
             long leewayMillis = 3500;
-            if (elapsedSinceLastCall <= leewayMillis && elapsedSinceLastFetched <= leewayMillis && !hasntExecutedThisBefore) {
+            if (elapsedSinceLastFetched <= leewayMillis && !hasntExecutedThisBefore) {
                 //Have executed and less than 3500 ago, and gotten an answer less than 3500 ago return prev answer
-                event.gottenLocation(getPreviouslyGottenLocation());
+                event.onLocationChange(getPreviouslyGottenLocation());
                 System.out.println("pressed below 3500 and has executed before");
-                return;
             } else {
                 //if more than leewayMillis millis have elapsed since the last time called, fetch new real value
-                referenceValue.runOnUiThread(new Runnable() {
+                activity.runOnUiThread(new Runnable() {
                     @SuppressLint("MissingPermission")
                     @Override
                     public void run() {
                         lm.requestLocationUpdates(
-                                LocationManager.NETWORK_PROVIDER, 1000, 1, new LocationListener() {
+                                LocationManager.NETWORK_PROVIDER, 0, 0, new LocationListener() {
                                     @Override
                                     public void onLocationChanged(Location location) {
-                                        event.gottenLocation(location);
-                                        lm.removeUpdates(this);
+                                        event.onLocationChange(location);
                                         StartAcitvity.this.previouslyGottenLocation = location;
                                         StartAcitvity.this.previouslyGotAtMillis = System.currentTimeMillis();
+                                        lm.removeUpdates(this);
                                     }
 
                                     @Override
                                     public void onStatusChanged(String provider, int status, Bundle extras) {
-
                                     }
 
                                     @Override
                                     public void onProviderEnabled(String provider) {
-
                                     }
 
                                     @Override
                                     public void onProviderDisabled(String provider) {
-
                                     }
                                 });
                     }
@@ -171,6 +176,7 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
         setContentView(R.layout.activity_start_acitvity);
 
+
         this.weakReference = new WeakReference<>(this);
 
         this.relativeLayout = findViewById(R.id.relative_content_layout);
@@ -199,12 +205,6 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         setStartButton.setOnClickListener(getSetStartButtonHandler());
         setEndButton.setOnClickListener(getSetEndButtonHandler());
 
-        this.preferences = getSharedPreferences(PREFERENCES_LOCATION, MODE_PRIVATE);
-        if (getPreferences().contains(UNIT_KEY)) {
-            SpeedUnit.valueOf(getPreferences().getString(UNIT_KEY, SpeedUnit.MPH.name()));
-        }else{
-            showPickUnitDialog(null);
-        }
 
         resetButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -220,12 +220,10 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
         fillTextViews();
 
-        getSetStartButton().setOnClickListener(setStartButtonHandler);
-
         getHelpButton().setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startHelpActivity();
+                showPickUnitDialog(getPreferredUnit());
             }
         });
 
@@ -233,36 +231,17 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
         getAverageSpeedTask().start();
 
-    }
-
-    private void showPickUnitDialog(SpeedUnit alreadySelectedUnit) {
-        SpeedUnit[] speedUnitValues = SpeedUnit.values();
-        int length = speedUnitValues.length;
-        CharSequence[] speedUnits = (CharSequence[]) Array.newInstance(CharSequence.class, length);
-        for (int i = 0; i < length; i++) {
-            Array.set(speedUnits, i, Util.upperFirst(speedUnitValues[i].name()));
-        }
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this)
+        this.querySpeedUnitDialog = new AlertDialog.Builder(this)
                 .setCancelable(false)
-                .setTitle("Pick a unit")
-                .setItems(speedUnits, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                SpeedUnit clicked = SpeedUnit.valueOf(speedUnits[which].toString().toUpperCase());
-                if (alreadySelectedUnit != clicked) {
-                    getReferenceValue().updatePreferredUnit(clicked);
-                    dialog.dismiss();
-                    dialog.cancel();
-                }
-            }
-        });
-        dialogBuilder.show();
-    }
+                .setTitle("Pick a unit");
 
-    private void updatePreferredUnit(SpeedUnit clicked) {
-        preferences.edit().putString(UNIT_KEY, clicked.name()).apply();
-        this.preferredUnit = clicked;
-        System.out.println("set to " + clicked);
+        this.preferences = getSharedPreferences(PREFERENCES_LOCATION, MODE_PRIVATE);
+        if (getPreferences().contains(UNIT_KEY)) {
+            updatePreferredUnit(SpeedUnit.valueOf(getPreferences().getString(UNIT_KEY, SpeedUnit.MPH.name())));
+        } else {
+            showPickUnitDialog(null);
+        }
+
     }
 
     @Override
@@ -285,16 +264,15 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == REQUEST_PERMISSION_ID) {
-            System.out.println("req code = " + requestCode);
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (AverageSpeedTask.getInstance() != null) {
-                    AverageSpeedTask.getInstance().start();
-                    runOnUiThread(() ->
-                            Toast.makeText(getReferenceValue(), "You can now use the app as intended.", Toast.LENGTH_SHORT).show());
+                AverageSpeedTask averageSpeedTask = AverageSpeedTask.getInstance();
+                if (averageSpeedTask != null) {
+                    averageSpeedTask.start();
+                    doUiToast("You can now use the app as intended.");
                 }
 
             } else {
-                runOnUiThread(() -> Toast.makeText(getReferenceValue(), "Permission denied -", Toast.LENGTH_SHORT).show());
+                doUiToast("Permission denied -");
             }
         }
     }
@@ -304,37 +282,58 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         return this.weakReference;
     }
 
-    private void startHelpActivity() {
-        Intent intent = new Intent();
+    private void doUiToast(String s) {
+        runOnUiThread(() -> Toast.makeText(getReferenceValue(), s, Toast.LENGTH_SHORT).show());
+    }
+
+    private void showPickUnitDialog(SpeedUnit alreadySelectedUnit) {
+        SpeedUnit[] speedUnitValues = SpeedUnit.values();
+        int length = speedUnitValues.length;
+        CharSequence[] speedUnits = (CharSequence[]) Array.newInstance(CharSequence.class, length);
+        for (int i = 0; i < length; i++) {
+            Array.set(speedUnits, i, Util.upperFirst(speedUnitValues[i].name()));
+        }
+        querySpeedUnitDialog.setItems(speedUnits, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                SpeedUnit clicked = SpeedUnit.valueOf(speedUnits[which].toString().toUpperCase());
+                if (alreadySelectedUnit != clicked) {
+                    getReferenceValue().updatePreferredUnit(clicked);
+                    dialog.dismiss();
+                    dialog.cancel();
+                }
+            }
+        });
+
+
+        querySpeedUnitDialog.show();
+    }
+
+    private void updatePreferredUnit(SpeedUnit clicked) {
+        preferences.edit().putString(UNIT_KEY, clicked.name()).apply();
+        this.preferredUnit = clicked;
+        System.out.println("set to " + clicked);
     }
 
     private void fillTextViews() {
         getCurrentAverageSpeed().setText("unknown...");
-        getHelpCaption().setText(Util.html("Need help?<br>Why not click the fella on the left."));
+        getHelpCaption().setText(Util.html("Want to show a different speed unit?<br>Why not click the fella on the left."));
         getAlternativelyDesc().setText(Util.html("<html><center>Alternatively, find out how fast<br>you're going between two points</center></html>"));
     }
 
-    public Button getSetEndButton() {
-        return setEndButton;
-    }
-
-    public Button getResetButton() {
-        return resetButton;
-    }
-
-    public SharedPreferences getPreferences() {
+    private SharedPreferences getPreferences() {
         return preferences;
     }
 
-    public long getPreviouslyCalledMillis() {
+    private long getPreviouslyCalledMillis() {
         return previouslyCalledMillis;
     }
 
-    public long getPreviouslyGotAtMillis() {
+    private long getPreviouslyGotAtMillis() {
         return previouslyGotAtMillis;
     }
 
-    public Location getPreviouslyGottenLocation() {
+    private Location getPreviouslyGottenLocation() {
         return previouslyGottenLocation;
     }
 
@@ -351,51 +350,31 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         return StartAcitvity.format;
     }
 
-    public ButtonHandler getSetStartButtonHandler() {
+    private ButtonHandler getSetStartButtonHandler() {
         return setStartButtonHandler;
     }
 
-    public ButtonHandler getSetEndButtonHandler() {
+    private ButtonHandler getSetEndButtonHandler() {
         return setEndButtonHandler;
     }
 
-    public AverageSpeedTask getAverageSpeedTask() {
+    private AverageSpeedTask getAverageSpeedTask() {
         return averageSpeedTask;
     }
 
-    public RelativeLayout getRelativeLayout() {
-        return relativeLayout;
-    }
-
-    public ImageView getHelpButton() {
+    private ImageView getHelpButton() {
         return helpButton;
     }
 
-    public TextView getHelpCaption() {
+    private TextView getHelpCaption() {
         return helpCaption;
     }
 
-    public TextView getWelcomeText() {
-        return welcomeText;
-    }
-
-    public Button getSetStartButton() {
-        return setStartButton;
-    }
-
-    public ImageView getMiddleDivider() {
-        return middleDivider;
-    }
-
-    public TextView getCurrentAverageSpeedCaption() {
-        return currentAverageSpeedCaption;
-    }
-
-    public TextView getCurrentAverageSpeed() {
+    private TextView getCurrentAverageSpeed() {
         return currentAverageSpeed;
     }
 
-    public TextView getAlternativelyDesc() {
+    private TextView getAlternativelyDesc() {
         return alternativelyDesc;
     }
 }

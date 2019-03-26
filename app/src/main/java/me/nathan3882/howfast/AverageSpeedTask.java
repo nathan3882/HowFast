@@ -2,14 +2,12 @@ package me.nathan3882.howfast;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.location.Location;
 import android.support.annotation.Nullable;
 import android.widget.TextView;
 import me.nathan3882.howfast.activities.StartAcitvity;
 
 import java.lang.ref.WeakReference;
-import java.text.DecimalFormat;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -17,10 +15,6 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
 
 
     private static AverageSpeedTask singleton = null;
-
-    static {
-        StartAcitvity.format = new DecimalFormat("##.##");
-    }
 
     private final Timer timer;
     private final Context context;
@@ -51,7 +45,8 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
     }
 
     public void start() {
-        timer.scheduleAtFixedRate(this, 1_000, 3500); //every 10 seconds, will call Runnable#run()
+        timer.scheduleAtFixedRate(this, 1_000, 10_000
+        ); //every 10 seconds, will call Runnable#run()
     }
 
     @SuppressLint("MissingPermission")
@@ -65,7 +60,7 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
             //permissions granted
             long currentMillis = System.currentTimeMillis();
 
-            getReferenceValue().forceGetCurrentLocation(newLocation -> {
+            getReferenceValue().getCurrentLocation(newLocation -> {
 
                 if (newLocation != null) {
                     System.out.println(newLocation.getLongitude() + " " + newLocation.getLatitude());
@@ -77,14 +72,8 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
 
                         double meterDifference = getDistanceBetween(newLocation, previouslyKnownLocation);
 
-                        SharedPreferences settings = getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE);
-                        //if has data about useMph and the user doesn't want to use mph execute condition = true else false
-
-                        boolean useMph = !settings.contains("useMph") || settings.getBoolean("useMph", false);
-                        SpeedUnit toUse = useMph ? SpeedUnit.MPH : SpeedUnit.KMPH;
-
                         updateCurrentSpeedTextView(
-                                StartAcitvity.getUnitString(currentMillis, previousHeartbeatMillis, meterDifference, toUse));
+                                StartAcitvity.getUnitString(currentMillis, previousHeartbeatMillis, meterDifference, getReferenceValue().getPreferredUnit()));
                     } else {
                         updateCurrentSpeedTextView("unknown...");
                     }

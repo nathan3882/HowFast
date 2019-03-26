@@ -65,6 +65,8 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
 
             if (otherPressedState == PressedState.PRESSED) {
 
+                doToast("Calculating...");
+
                 //do calculations etc
                 long startedAt = otherButton.getLastClickedAt();
 
@@ -77,14 +79,6 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
 
                 otherButton.reset();
                 reset();
-            } else if (otherPressedState == PressedState.NOT_BEEN_PRESSED) {
-                //start button not been pressed
-                System.out.println("3");
-
-                doToast("You must press start!");
-            } else {
-                System.out.println("4");
-
             }
         }
     }
@@ -105,14 +99,13 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
         StartAcitvity referenceValue = getReferenceValue();
 
         if (!referenceValue.hasLocationPermissions(true)) {
-            System.out.println("69");
             doToast("Please accept permission");
             return;
         }
 
-        referenceValue.forceGetCurrentLocation(new LocationChangedEvent() {
+        referenceValue.getCurrentLocation(new LocationChangedEvent() {
             @Override
-            public void gottenLocation(Location newLocation) {
+            public void onLocationChange(Location newLocation) {
                 registerClick(System.currentTimeMillis(), newLocation);
             }
         });
@@ -146,7 +139,7 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
             button.setBackgroundColor(Color.GREEN);
             if (getButtonType() == Type.START) {
                 button.setText("Pressed at " + calendar.get(Calendar.HOUR_OF_DAY) + ":" + calendar.get(Calendar.MINUTE) + " + " + calendar.get(Calendar.SECOND) + "s");
-
+                otherButton.getButton().setVisibility(View.VISIBLE);
             }
         } else if (pressedState == PressedState.NOT_BEEN_PRESSED) {
             button.setBackgroundColor(Color.RED);
@@ -155,8 +148,8 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
             } else if (getButtonType() == Type.FINISH) {
                 if (getOtherButton().getPressedState() == PressedState.PRESSED) {
                     button.setText(getReferenceValue().getString(R.string.get_speed));
-                }else {
-                    button.setText(getReferenceValue().getString(R.string.press_start_button));
+                } else {
+                    button.setVisibility(View.GONE);
                 }
             }
         }
