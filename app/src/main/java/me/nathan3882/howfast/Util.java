@@ -9,8 +9,6 @@ import android.text.Spanned;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
 
-import java.time.DayOfWeek;
-
 public class Util {
 
     public static final String BREAK = "<br>";

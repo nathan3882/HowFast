@@ -15,13 +15,15 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
 
 
     private static AverageSpeedTask singleton = null;
-
     private final Timer timer;
-    private final Context context;
+
     private final StartAcitvity activity;
+    private WeakReference<StartAcitvity> weakReference;
+
+    private final Context context;
+
     private final TextView currentSpeedTextView;
 
-    private WeakReference<StartAcitvity> weakReference;
     private Location previouslyKnownLocation = null;
     private long previousHeartbeatMillis = -1;
 
@@ -45,35 +47,29 @@ public class AverageSpeedTask extends TimerTask implements IActivityReferencer<S
     }
 
     public void start() {
-        timer.scheduleAtFixedRate(this, 1_000, 10_000
-        ); //every 10 seconds, will call Runnable#run()
+        timer.scheduleAtFixedRate(this, 1_000, 8500); //every 10 seconds, will call Runnable#run()
     }
 
     @SuppressLint("MissingPermission")
     @Override
     public void run() {
-        System.out.println("run");
-
-        if (!getReferenceValue().hasLocationPermissions(true)) {
+        StartAcitvity referenceValue = getReferenceValue();
+        if (referenceValue == null || !referenceValue.hasLocationPermissions(true)) {
             cancel(); //Cancel, when user has given all perms, will call Runnable#run again
         } else {
             //permissions granted
             long currentMillis = System.currentTimeMillis();
-
-            getReferenceValue().getCurrentLocation(newLocation -> {
+            referenceValue.getCurrentLocation(newLocation -> {
 
                 if (newLocation != null) {
-                    System.out.println(newLocation.getLongitude() + " " + newLocation.getLatitude());
-
                     Location previouslyKnownLocation = getPreviouslyKnownLocation();
                     long previousHeartbeatMillis = getPreviousHeartbeatMillis();
 
                     if (previouslyKnownLocation != null && previousHeartbeatMillis != -1) {
-
                         double meterDifference = getDistanceBetween(newLocation, previouslyKnownLocation);
 
                         updateCurrentSpeedTextView(
-                                StartAcitvity.getUnitString(currentMillis, previousHeartbeatMillis, meterDifference, getReferenceValue().getPreferredUnit()));
+                                StartAcitvity.getUnitString(currentMillis, previousHeartbeatMillis, meterDifference, referenceValue.getPreferredUnit()));
                     } else {
                         updateCurrentSpeedTextView("unknown...");
                     }

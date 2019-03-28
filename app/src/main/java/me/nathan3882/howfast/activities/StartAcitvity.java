@@ -29,6 +29,7 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
     private static final int REQUEST_PERMISSION_ID = 1001;
     private static final String PREFERENCES_LOCATION = "me.nathan3882.howfast.unitprefs";
     private static final String UNIT_KEY = "speedUnitKey";
+
     private static DecimalFormat format;
 
     static {
@@ -78,21 +79,32 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         double elapsedHours = (elapsedMinutes / 60);
 
         double unitValue = 0.0;
-        String toAppend = "";
-        if (unit == SpeedUnit.MPH) {
-            double mileDifference = (meterDifference * 0.00062137);
-            double mphSpeed = (mileDifference / elapsedHours);
-            unitValue = mphSpeed;
-            toAppend = "mph";
-        } else if (unit == SpeedUnit.KMPH) {
-            double kilometerDifference = (meterDifference / 1000);
-            double kmphSpeed = (kilometerDifference / elapsedHours);
-            unitValue = kmphSpeed;
-            toAppend = "km/h";
+        String toAppend = unit.getPrettyRepresentation();
+        switch (unit) {
+            case MPH:
+                double mileDifference = (meterDifference * 0.00062137);
+                double mphSpeed = (mileDifference / elapsedHours);
+                unitValue = mphSpeed;
+                break;
+            case KMPH:
+                double kilometerDifference = (meterDifference / 1000);
+                double kmphSpeed = (kilometerDifference / elapsedHours);
+                unitValue = kmphSpeed;
+                break;
+            case KNOTS:
+                double nauticalMileDifference = (meterDifference * 0.00053995680);
+                //a knot is 1 nauticalMile per hour
+                double knots = nauticalMileDifference / elapsedHours;
+                unitValue = knots;
+                break;
+            case FPS:
+                double feetDifference = (meterDifference * 3.28084);
+                double feetPerSecond = feetDifference / elapsedSeconds;
+                unitValue = feetPerSecond;
+                break;
         }
 
         if (Double.valueOf(unitValue).isNaN() || unitValue < 1.0) {
-            System.out.println("speed = " + unitValue);
             return "< 1" + toAppend + " - walk about";
         } else {
             return getFormat().format(unitValue) + toAppend;
@@ -117,7 +129,6 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
             if (elapsedSinceLastFetched <= leewayMillis && !hasntExecutedThisBefore) {
                 //Have executed and less than 3500 ago, and gotten an answer less than 3500 ago return prev answer
                 event.onLocationChange(getPreviouslyGottenLocation());
-                System.out.println("pressed below 3500 and has executed before");
             } else {
                 //if more than leewayMillis millis have elapsed since the last time called, fetch new real value
                 activity.runOnUiThread(new Runnable() {
@@ -201,6 +212,8 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         setEndButtonHandler.setOtherButton(setStartButtonHandler);
         setStartButtonHandler.setOtherButton(setEndButtonHandler);
 
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+        getSupportActionBar().setHomeButtonEnabled(false);
 
         setStartButton.setOnClickListener(getSetStartButtonHandler());
         setEndButton.setOnClickListener(getSetEndButtonHandler());
@@ -264,15 +277,15 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == REQUEST_PERMISSION_ID) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            int len = grantResults.length;
+            int gr = grantResults[0];
+            if (len > 0 && gr == PackageManager.PERMISSION_GRANTED) {
                 AverageSpeedTask averageSpeedTask = AverageSpeedTask.getInstance();
                 if (averageSpeedTask != null) {
-                    averageSpeedTask.start();
                     doUiToast("You can now use the app as intended.");
+                    averageSpeedTask.start();
                 }
 
-            } else {
-                doUiToast("Permission denied -");
             }
         }
     }
@@ -290,13 +303,14 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
         SpeedUnit[] speedUnitValues = SpeedUnit.values();
         int length = speedUnitValues.length;
         CharSequence[] speedUnits = (CharSequence[]) Array.newInstance(CharSequence.class, length);
+
         for (int i = 0; i < length; i++) {
-            Array.set(speedUnits, i, Util.upperFirst(speedUnitValues[i].name()));
+            Array.set(speedUnits, i, Util.upperFirst(speedUnitValues[i].getPrettyRepresentation()));
         }
         querySpeedUnitDialog.setItems(speedUnits, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                SpeedUnit clicked = SpeedUnit.valueOf(speedUnits[which].toString().toUpperCase());
+                SpeedUnit clicked = SpeedUnit.getFromPrettyRepresentation(speedUnits[which].toString());
                 if (alreadySelectedUnit != clicked) {
                     getReferenceValue().updatePreferredUnit(clicked);
                     dialog.dismiss();
@@ -312,7 +326,6 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
     private void updatePreferredUnit(SpeedUnit clicked) {
         preferences.edit().putString(UNIT_KEY, clicked.name()).apply();
         this.preferredUnit = clicked;
-        System.out.println("set to " + clicked);
     }
 
     private void fillTextViews() {
@@ -339,14 +352,18 @@ public class StartAcitvity extends AppCompatActivity implements IActivityReferen
 
     public SpeedUnit getPreferredUnit() {
         SpeedUnit preferredUnit = this.preferredUnit;
-        SpeedUnit preferencedUnit = SpeedUnit.valueOf(getPreferences().getString(UNIT_KEY, preferredUnit.name()));
+        SpeedUnit preferencedUnit = null;
+        if (getPreferences().contains(UNIT_KEY)) {
+            preferencedUnit = SpeedUnit.valueOf(getPreferences().getString(UNIT_KEY, preferredUnit.name()));
+        }
+        if (preferencedUnit == null) return SpeedUnit.MPH;
         if (preferredUnit != preferencedUnit) {
             updatePreferredUnit(preferencedUnit);
         }
         return preferredUnit;
     }
 
-    private static DecimalFormat getFormat() {
+    public static DecimalFormat getFormat() {
         return StartAcitvity.format;
     }
 

@@ -50,7 +50,6 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
         Type thisType = getButtonType();
         if (thisType == Type.START && otherButton != null) {
             //Other button is finish
-            System.out.println("1");
             setPressedState(PressedState.PRESSED);
             update(System.currentTimeMillis(), currentLocation);
             otherButton.reset();
@@ -59,7 +58,6 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
             doToast("Current location updated, press finish to find average speed");
 
         } else if (thisType == Type.FINISH && otherButton != null) {
-            System.out.println("2");
 
             PressedState otherPressedState = otherButton.getPressedState();
 
@@ -75,7 +73,7 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
 
                 String averageString = StartAcitvity.getUnitString(currentMillis, startedAt, distance, getReferenceValue().getPreferredUnit());
 
-                doToast("Your average speed was " + averageString);
+                doToast("Avg over last " + getReferenceValue().getFormat().format(distance) + "m was " + averageString);
 
                 otherButton.reset();
                 reset();
@@ -83,7 +81,7 @@ public class ButtonHandler implements View.OnClickListener, IActivityReferencer<
         }
     }
 
-    public void reset() {
+    public final void reset() {
         setPressedState(PressedState.NOT_BEEN_PRESSED);
         setClickedAtThisLocation(null);
         setLastClickedAt(-1);

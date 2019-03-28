@@ -88,6 +88,6 @@
             android:textAllCaps="false"
             tools:text="@string/press_start_button" android:layout_centerHorizontal="true"
             android:layout_alignParentBottom="true"
-            android:layout_marginBottom="198dp"/>
+            android:layout_marginBottom="198dp" android:visibility="gone"/>
 
 </RelativeLayout>
