@@ -4,4 +4,5 @@ public enum PressedState {
 
     PRESSED,
     NOT_BEEN_PRESSED;
+
 }
